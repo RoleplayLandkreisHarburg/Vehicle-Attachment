@@ -20,6 +20,7 @@ using CitizenFX.Core;
 using CitizenFX.Core.UI;
 using CitizenFX.Core.Native;
 using InfernoCollection.VehicleAttachment.Client.Models;
+using static CitizenFX.Core.Native.API;
 
 namespace InfernoCollection.VehicleCollection.Client
 {
@@ -27,25 +28,25 @@ namespace InfernoCollection.VehicleCollection.Client
     {
         #region Configuration Variables
         internal readonly Vector3
-            POSITION_VECTOR = new Vector3(0.0f, -2.0f, 1.5f),
+            POSITION_VECTOR = new Vector3(0.0f, 0.0f, 0.0f),
             ROTATION_VECTOR = new Vector3(0.0f, 0.0f, 0.0f),
             RAYCAST_VECTOR = new Vector3(0.0f, 2.0f, 0.0f);
 
         internal const string
             CONFIG_FILE_NAME = "config.json",
             TOW_CONTROLS =
-                "~INPUT_F8DD5118~/~INPUT_2F20FA6E~ = Forward/Backwards" +
-                "\n~INPUT_872241C1~/~INPUT_DEEBB52A~ = Left/Right" +
-                "\n~INPUT_32D078AF~/~INPUT_7B7B256B~ = Up/Down" +
-                "\n~INPUT_6DC8415B~/~INPUT_4EEC321F~ = Rotate Left/Right" +
-                "\n~INPUT_83B8F159~/~INPUT_EE722E7A~ = Rotate Up/Down" +
-                "\nHold ~INPUT_SPRINT~/~INPUT_DUCK~ = Speed Up/Slow Down" +
-                "\n~INPUT_94172EE1~ = Confirm Position";
+                "~INPUT_F8DD5118~/~INPUT_2F20FA6E~ = Vorne / Hinten" +
+                "\n~INPUT_872241C1~/~INPUT_DEEBB52A~ = Links / Rechts" +
+                "\n~INPUT_32D078AF~/~INPUT_7B7B256B~ = Hoch / Runter" +
+                "\n~INPUT_6DC8415B~/~INPUT_4EEC321F~ = Nach Links / Rechts drehen" +
+                "\n~INPUT_83B8F159~/~INPUT_EE722E7A~ = Nach Oben / Unten drehen" +
+                "\nHold ~INPUT_SPRINT~/~INPUT_DUCK~ = Geschwindigkeit hoch / runter" +
+                "\n~INPUT_94172EE1~ = Position bestätigen";
         #endregion
 
         #region General Variables
         internal bool
-            _driveOn,
+            _driveOn = true,
             _goFaster,
             _goSlower;
 
@@ -57,6 +58,9 @@ namespace InfernoCollection.VehicleCollection.Client
 
         internal AttachmentStage _attachmentStage;
         internal AttachmentStage _previousAttachmentStage;
+
+
+        private string currentJob = "unemployed";
         #endregion
 
         #region Constructor
@@ -68,21 +72,38 @@ namespace InfernoCollection.VehicleCollection.Client
                 throw new Exception("This resource requires at least OneSync \"legacy\". Use Public Beta Version 1.3 if you do not want to use OneSync.");
             }
 
-            TriggerEvent("chat:addSuggestion", "/attach [driveon|help|cancel]", "Starts the process of attaching one vehicle to another.");
-            TriggerEvent("chat:addSuggestion", "/detach [help|cancel]", "Starts the process of detaching one vehicle from another.");
+            TriggerEvent("chat:addSuggestion", "/attach [driveon|help|cancel]", "Startet den Prozess des anhängen eines Fahrzeuges an ein anderes");
+            TriggerEvent("chat:addSuggestion", "/detach [help|cancel]", "Startet den Prozess des abhängen eines Fahrzeuges von einem anderen");
+
+            EventHandlers["esx:playerLoaded"] += new Action<dynamic>(xPlayer =>
+            {
+                currentJob = xPlayer.job.name;
+            });
+
+            EventHandlers["esx:setJob"] += new Action<dynamic>(job =>
+            {
+                currentJob = job.name;
+            });
+
+            EventHandlers["script:returnJob"] += new Action<dynamic>(job =>
+            {
+                currentJob = job;
+            });
+
+            TriggerEvent("script:getjob");
 
             #region Key Mapping
-            API.RegisterKeyMapping("inferno-vehicle-attachment-forward", "Move attached vehicle forward.", "keyboard", "NUMPAD8"); // ~INPUT_F8DD5118~
-            API.RegisterKeyMapping("inferno-vehicle-attachment-back", "Move attached vehicle back.", "keyboard", "NUMPAD5"); // ~INPUT_2F20FA6E~
-            API.RegisterKeyMapping("inferno-vehicle-attachment-left", "Move attached vehicle left.", "keyboard", "NUMPAD4"); // ~INPUT_872241C1~
-            API.RegisterKeyMapping("inferno-vehicle-attachment-right", "Move attached vehicle right.", "keyboard", "NUMPAD6"); // ~INPUT_DEEBB52A~
-            API.RegisterKeyMapping("inferno-vehicle-attachment-up", "Move attached vehicle up.", "keyboard", "PAGEUP"); // ~INPUT_32D078AF~
-            API.RegisterKeyMapping("inferno-vehicle-attachment-down", "Move attached vehicle down.", "keyboard", "PAGEDOWN"); // ~INPUT_7B7B256B~
-            API.RegisterKeyMapping("inferno-vehicle-attachment-rotate-left", "Rotate attached vehicle left.", "keyboard", "NUMPAD7"); // ~INPUT_6DC8415B~
-            API.RegisterKeyMapping("inferno-vehicle-attachment-rotate-right", "Rotate attached vehicle right.", "keyboard", "NUMPAD9"); /// ~INPUT_4EEC321F~
-            API.RegisterKeyMapping("inferno-vehicle-attachment-rotate-up", "Rotate attached vehicle up.", "keyboard", "INSERT"); // ~INPUT_83B8F159~
-            API.RegisterKeyMapping("inferno-vehicle-attachment-rotate-down", "Rotate attached vehicle down.", "keyboard", "DELETE"); // ~INPUT_EE722E7A~
-            API.RegisterKeyMapping("inferno-vehicle-attachment-confirm", "Confirm attached vehicle.", "keyboard", "NUMPADENTER"); // ~INPUT_CAAAA4F4~
+            API.RegisterKeyMapping("inferno-vehicle-attachment-forward", "Angehängtes Fahrzeug nach vorne verschieben.", "keyboard", "NUMPAD8"); // ~INPUT_F8DD5118~
+            API.RegisterKeyMapping("inferno-vehicle-attachment-back", "Angehängtes Fahrzeug nach hinten verschieben.", "keyboard", "NUMPAD5"); // ~INPUT_2F20FA6E~
+            API.RegisterKeyMapping("inferno-vehicle-attachment-left", "Angehängtes Fahrzeug nach links verschieben.", "keyboard", "NUMPAD4"); // ~INPUT_872241C1~
+            API.RegisterKeyMapping("inferno-vehicle-attachment-right", "Angehängtes Fahrzeug nach rechts verschieben.", "keyboard", "NUMPAD6"); // ~INPUT_DEEBB52A~
+            API.RegisterKeyMapping("inferno-vehicle-attachment-up", "Angehängtes Fahrzeug nach oben verschieben.", "keyboard", "PAGEUP"); // ~INPUT_32D078AF~
+            API.RegisterKeyMapping("inferno-vehicle-attachment-down", "Angehängtes Fahrzeug nach unten verschieben.", "keyboard", "PAGEDOWN"); // ~INPUT_7B7B256B~
+            API.RegisterKeyMapping("inferno-vehicle-attachment-rotate-left", "Angehängtes Fahrzeug nach Links drehen.", "keyboard", "NUMPAD7"); // ~INPUT_6DC8415B~
+            API.RegisterKeyMapping("inferno-vehicle-attachment-rotate-right", "Angehängtes Fahrzeug nach rechts drehen.", "keyboard", "NUMPAD9"); /// ~INPUT_4EEC321F~
+            API.RegisterKeyMapping("inferno-vehicle-attachment-rotate-up", "Angehängtes Fahrzeug nach oben drehen.", "keyboard", "INSERT"); // ~INPUT_83B8F159~
+            API.RegisterKeyMapping("inferno-vehicle-attachment-rotate-down", "Angehängtes Fahrzeug nach unten drehen.", "keyboard", "DELETE"); // ~INPUT_EE722E7A~
+            API.RegisterKeyMapping("inferno-vehicle-attachment-confirm", "Position des Fahrzeuges bestätigen.", "keyboard", "NUMPADENTER"); // ~INPUT_CAAAA4F4~
             #endregion
 
             #region Load configuration file
@@ -128,6 +149,10 @@ namespace InfernoCollection.VehicleCollection.Client
         [Command("attach")]
         internal void OnAttach(string[] args)
         {
+            if (!(currentJob == "ffhittfeld" || currentJob == "feuerwehr" || currentJob == "abschleppdienst" || currentJob == "staff")) {
+                return;
+            }
+
             if (args.Count() > 0)
             {
                 if (args[0] == "help")
@@ -138,7 +163,7 @@ namespace InfernoCollection.VehicleCollection.Client
                 {
                     _driveOn = !_driveOn;
 
-                    Screen.ShowNotification($"~o~Drive On mode {(_driveOn ? "~g~enabled" : "~r~disabled")}", true);
+                    Screen.ShowNotification($"Befahren Modus {(_driveOn ? "~g~aktiviert" : "~r~deaktiviert")}", true);
                 }
                 else if (args[0] == "cancel")
                 {
@@ -151,7 +176,7 @@ namespace InfernoCollection.VehicleCollection.Client
                     }
                     else
                     {
-                        Screen.ShowNotification("~r~You are not interacting with a vehicle right now!");
+                        Screen.ShowNotification("~r~Du interagierst mit keinem Fahrzeug!");
                     }
                 }
             }
@@ -169,6 +194,8 @@ namespace InfernoCollection.VehicleCollection.Client
         [Command("detach")]
         internal void OnDetach(string[] args)
         {
+            if (currentJob == "ffhittfeld" || currentJob == "feuerwehr" || currentJob == "abschleppdienst" || currentJob == "staff") { return; }
+
             if (args.Count() > 0)
             {
                 if (args[0] == "help")
@@ -186,7 +213,7 @@ namespace InfernoCollection.VehicleCollection.Client
                     }
                     else
                     {
-                        Screen.ShowNotification("~r~You are not interacting with a vehicle right now!");
+                        Screen.ShowNotification("~r~Du interagierst mit keinem Fahrzeug!");
                     }
                 }
             }
@@ -242,7 +269,7 @@ namespace InfernoCollection.VehicleCollection.Client
         {
             if (_attachmentStage != AttachmentStage.None)
             {
-                Screen.ShowNotification("~r~You are already interacting with another vehicle!");
+                Screen.ShowNotification("~r~Du interagierst bereits mit einem anderen Fahrzeug!");
             }
             else
             {
@@ -250,7 +277,7 @@ namespace InfernoCollection.VehicleCollection.Client
                 Tick += AttachmentTick;
 
                 Game.PlaySound("TOGGLE_ON", "HUD_FRONTEND_DEFAULT_SOUNDSET");
-                Screen.ShowNotification("~g~Select a towing vehicle to get started!");
+                Screen.ShowNotification("~g~Wähle ein Transportfahrzeug aus bevor du startest!");
             }
         }
 
@@ -262,7 +289,7 @@ namespace InfernoCollection.VehicleCollection.Client
         {
             if (Entity.Exists(_tempTowVehicle) || Entity.Exists(_tempVehicleBeingTowed))
             {
-                Screen.ShowNotification("~o~Use \"/attach cancel\" to cancel attachment");
+                Screen.ShowNotification("Benutze \"/attach cancel\" um den Vorgang zu beenden");
             }
             else
             {
@@ -273,11 +300,11 @@ namespace InfernoCollection.VehicleCollection.Client
 
                 if (_attachmentStage != AttachmentStage.None)
                 {
-                    Screen.ShowNotification("~r~You are already interacting with another vehicle!");
+                    Screen.ShowNotification("~r~Du interagierst bereits mit einem anderen Fahrzeug!");
                 }
                 else if (!Entity.Exists(towVehicle))
                 {
-                    Screen.ShowNotification("~r~No suitable vehicle found!", true);
+                    Screen.ShowNotification("~r~Kein Mögliches Fahrzeug gefunden", true);
                 }
                 else
                 {
@@ -290,7 +317,7 @@ namespace InfernoCollection.VehicleCollection.Client
                     if (!Entity.Exists(vehicleBeingTowed))
                     {
                         Game.PlaySound("CANCEL", "HUD_FREEMODE_SOUNDSET");
-                        Screen.ShowNotification("~r~Vehicle being towed deleted!");
+                        Screen.ShowNotification("~r~Fahrzeug welches abgeschleppt wurde wurde gelöscht!");
                     }
                     else
                     {
@@ -301,7 +328,7 @@ namespace InfernoCollection.VehicleCollection.Client
 
                         if (_driveOn)
                         {
-                            Screen.ShowNotification($"~g~{_tempVehicleBeingTowed.LocalizedName ?? "Vehicle"} detached, drive it off.");
+                            Screen.ShowNotification($"~g~{_tempVehicleBeingTowed.DisplayName ?? "Fahrzeug"} gelöst. Fahr es hinunter!");
 
                             ResetTowedVehicle(_tempVehicleBeingTowed);
                             SetVehicleAsBeingUsed(_tempVehicleBeingTowed, false);
@@ -321,8 +348,8 @@ namespace InfernoCollection.VehicleCollection.Client
                             _attachmentStage = AttachmentStage.Detach;
                             Tick += AttachmentTick;
 
-                            Screen.ShowNotification("~g~Follow the instructions to detach the vehicle.");
-                        }                        
+                            Screen.ShowNotification("~g~Folge der Anleitung um das Fahrzeug zu trennen.");
+                        }
                     }
                 }
             }
@@ -344,22 +371,22 @@ namespace InfernoCollection.VehicleCollection.Client
 
                         if (towTruck == null)
                         {
-                            Screen.DisplayHelpTextThisFrame("No vehicle found!");
+                            Screen.DisplayHelpTextThisFrame("Kein Fahrzeug gefunden!");
                         }
                         else if (IsAlreadyBeingUsed(towTruck))
                         {
-                            Screen.DisplayHelpTextThisFrame($"Someone else is using the {towTruck.LocalizedName ?? "tow truck"}.");
+                            Screen.DisplayHelpTextThisFrame($"Jemand anderes nutzt den {towTruck.DisplayName ?? "Abschlepper"}.");
                         }
                         else if (
                             (!_config.BlacklistToWhitelist && _config.AttachmentBlacklist.Contains(towTruck.Model)) ||
                             (_config.BlacklistToWhitelist && !_config.AttachmentBlacklist.Contains(towTruck.Model))
                         )
                         {
-                            Screen.DisplayHelpTextThisFrame($"The {towTruck.LocalizedName ?? "tow truck"} cannot be used as a tow vehicle!");
+                            Screen.DisplayHelpTextThisFrame($"Der {towTruck.DisplayName ?? "Abschlepper"} kann nicht als Abschlepper genutzt werden!");
                         }
                         else if (_config.MaxNumberOfAttachedVehicles > 0 && GetTowedVehicles(towTruck).Count() >= _config.MaxNumberOfAttachedVehicles)
                         {
-                            Screen.DisplayHelpTextThisFrame($"{towTruck.LocalizedName ?? "tow truck"} cannot tow any more vehicles.");
+                            Screen.DisplayHelpTextThisFrame($"{towTruck.DisplayName ?? "Abschlepper"} kann keine weiteren Fahrzeuge aufnehmen.");
                         }
                         else
                         {
@@ -368,12 +395,12 @@ namespace InfernoCollection.VehicleCollection.Client
                                 World.DrawLine(Game.PlayerPed.Position, towTruck.Position, System.Drawing.Color.FromArgb(255, 0, 255, 0));
                             }
 
-                            Screen.DisplayHelpTextThisFrame($"~INPUT_FRONTEND_ACCEPT~ to use the {towTruck.LocalizedName ?? "tow truck"} as the towing vehicle.");
+                            Screen.DisplayHelpTextThisFrame($"~INPUT_FRONTEND_ACCEPT~ um den {towTruck.DisplayName ?? "Abschlepper"} als Abschlepper zu nutzen.");
 
                             if (Game.IsControlJustPressed(0, Control.FrontendAccept))
                             {
                                 Game.PlaySound("OK", "HUD_FRONTEND_DEFAULT_SOUNDSET");
-                                Screen.ShowNotification($"~g~{towTruck.LocalizedName ?? "tow truck"} confirmed as towing vehicle! Now select a vehicle to be towed.");
+                                Screen.ShowNotification($"~g~{towTruck.DisplayName ?? "Abschlepper"} als Abschlepper erfolgreich ausgewählt! Wähle nun das Fahrzeug aus.");
 
                                 _tempTowVehicle = towTruck;
                                 _attachmentStage = AttachmentStage.VehicleToBeTowed;
@@ -394,33 +421,33 @@ namespace InfernoCollection.VehicleCollection.Client
 
                         if (vehicleToBeTowed == null)
                         {
-                            Screen.DisplayHelpTextThisFrame("No vehicle that be can towed found!");
+                            Screen.DisplayHelpTextThisFrame("Kein Fahrzeug zum Abschleppen gefunden!");
                         }
                         else if (!Entity.Exists(_tempTowVehicle))
                         {
                             _attachmentStage = AttachmentStage.Cancel;
 
                             Game.PlaySound("CANCEL", "HUD_FREEMODE_SOUNDSET");
-                            Screen.ShowNotification("~r~Tow vehicle deleted, cannot attach to nothing!");
+                            Screen.ShowNotification("~r~Abschlepper gelöscht! Es kann nicht mit einem anderen Abgeschleppt werden");
                         }
                         else if (IsAlreadyBeingUsed(vehicleToBeTowed))
                         {
-                            Screen.DisplayHelpTextThisFrame($"The {vehicleToBeTowed.LocalizedName ?? "vehicle"} is already in use.");
+                            Screen.DisplayHelpTextThisFrame($"Das {vehicleToBeTowed.DisplayName ?? "Fahrzeug"} wird bereits genutzt.");
                         }
                         else if (
                             (!_config.BlacklistToWhitelist && _config.AttachmentBlacklist.Contains(vehicleToBeTowed.Model)) ||
                             (_config.BlacklistToWhitelist && _config.WhitelistForTowedVehicles && !_config.AttachmentBlacklist.Contains(vehicleToBeTowed.Model))
                         )
                         {
-                            Screen.DisplayHelpTextThisFrame($"The {vehicleToBeTowed.LocalizedName ?? "vehicle"} cannot be towed!");
+                            Screen.DisplayHelpTextThisFrame($"Das {vehicleToBeTowed.DisplayName ?? "Fahrzeug"} kann nicht abgeschleppt werden!");
                         }
                         else if (vehicleToBeTowed.Occupants.Length > 0)
                         {
-                            Screen.DisplayHelpTextThisFrame($"The {vehicleToBeTowed.LocalizedName ?? "vehicle"} is occupied!");
+                            Screen.DisplayHelpTextThisFrame($"Das {vehicleToBeTowed.DisplayName ?? "Fahrzeug"} ist belegt!");
                         }
                         else if (Entity.Exists(_tempTowVehicle) && vehicleToBeTowed.Position.DistanceToSquared2D(_tempTowVehicle.Position) > _config.MaxDistanceFromTowVehicle)
                         {
-                            Screen.DisplayHelpTextThisFrame($"The {vehicleToBeTowed.LocalizedName ?? "vehicle"} is too far from the {_tempTowVehicle.LocalizedName ?? "tow truck"}!");
+                            Screen.DisplayHelpTextThisFrame($"Das {vehicleToBeTowed.DisplayName ?? "Fahrzeug"} ist zu weit vom {_tempTowVehicle.DisplayName ?? "entfernt"}!");
                         }
                         else
                         {
@@ -429,7 +456,7 @@ namespace InfernoCollection.VehicleCollection.Client
                                 World.DrawLine(Game.PlayerPed.Position, vehicleToBeTowed.Position, System.Drawing.Color.FromArgb(255, 0, 255, 0));
                             }
 
-                            Screen.DisplayHelpTextThisFrame($"~INPUT_FRONTEND_ACCEPT~ to tow the {vehicleToBeTowed.LocalizedName ?? "vehicle"}.");
+                            Screen.DisplayHelpTextThisFrame($"~INPUT_FRONTEND_ACCEPT~ um den {vehicleToBeTowed.DisplayName ?? "Fahrzeug"} abzuschleppen.");
 
                             if (Game.IsControlJustPressed(0, Control.FrontendAccept))
                             {
@@ -448,9 +475,9 @@ namespace InfernoCollection.VehicleCollection.Client
                                 if (!API.NetworkHasControlOfNetworkId(vehicleToBeTowed.NetworkId))
                                 {
                                     Game.PlaySound("CANCEL", "HUD_FREEMODE_SOUNDSET");
-                                    Screen.ShowNotification($"~r~Could not tow the {vehicleToBeTowed.LocalizedName ?? "vehicle"}.", true);
+                                    Screen.ShowNotification($"~r~Der {vehicleToBeTowed.DisplayName ?? "konnte nicht abgeschleppt werden"}.", true);
 
-                                    Debug.WriteLine($"Unable to tow {vehicleToBeTowed.LocalizedName} ({vehicleToBeTowed.NetworkId}); ownership of the vehicle could not be requested!");
+                                    Debug.WriteLine($"Unable to tow {vehicleToBeTowed.DisplayName} ({vehicleToBeTowed.NetworkId}); ownership of the vehicle could not be requested!");
 
                                     _attachmentStage = AttachmentStage.Cancel;
                                 }
@@ -460,7 +487,7 @@ namespace InfernoCollection.VehicleCollection.Client
 
                                     if (_driveOn)
                                     {
-                                        Screen.ShowNotification($"~g~{vehicleToBeTowed.LocalizedName ?? "vehicle"} confirmed as vehicle to be towed! Drive on then confirm.");
+                                        Screen.ShowNotification($"~g~{vehicleToBeTowed.DisplayName ?? "Fahrzeug"} bestätigt als Fahrzeug zum Abschleppen. Fahre das Fahrzeug nun auf die Rampe.");
 
                                         vehicleToBeTowed.IsPersistent = true;
 
@@ -473,7 +500,7 @@ namespace InfernoCollection.VehicleCollection.Client
                                     }
                                     else
                                     {
-                                        Screen.ShowNotification($"~g~{vehicleToBeTowed.LocalizedName ?? "vehicle"} confirmed as vehicle to be towed! Follow instructions to position vehicle.");
+                                        Screen.ShowNotification($"~g~{vehicleToBeTowed.DisplayName ?? "Fahrzeug"} bestätigt als Fahrzeug zum Abschleppen. Folge der Anleitung um das Fahrzeug zu positionieren.");
 
                                         ShowTowControls();
 
@@ -483,6 +510,7 @@ namespace InfernoCollection.VehicleCollection.Client
                                         vehicleToBeTowed.IsCollisionEnabled = false;
                                         vehicleToBeTowed.LockStatus = VehicleLockStatus.CannotBeTriedToEnter;
                                         vehicleToBeTowed.AttachTo(_tempTowVehicle, POSITION_VECTOR, ROTATION_VECTOR);
+                                        
 
                                         AddNewTowedVehicle(_tempTowVehicle, new TowedVehicle()
                                         {
@@ -512,7 +540,7 @@ namespace InfernoCollection.VehicleCollection.Client
                             {
                                 SetVehicleAsBeingUsed(_tempTowVehicle, false);
 
-                                Screen.ShowNotification("~g~Attachment canceled.");
+                                Screen.ShowNotification("~g~Abschleppen abgebrochen.");
                                 Tick -= AttachmentTick;
                                 _attachmentStage = AttachmentStage.None;
                             }
@@ -520,7 +548,7 @@ namespace InfernoCollection.VehicleCollection.Client
                             {
                                 if (_tempTowVehicle.Position.DistanceToSquared2D(Game.PlayerPed.Position) > _config.MaxDistanceFromTowVehicle)
                                 {
-                                    Screen.ShowNotification($"~r~{_tempTowVehicle.LocalizedName ?? "Tow truck"} too far away!", true);
+                                    Screen.ShowNotification($"~r~{_tempTowVehicle.DisplayName ?? "Abschlepper"} zu weit weg!", true);
                                 }
                                 else
                                 {
@@ -529,7 +557,7 @@ namespace InfernoCollection.VehicleCollection.Client
                                     SetVehicleAsBeingUsed(_tempVehicleBeingTowed, false);
                                     RemoveTowedVehicle(_tempTowVehicle, _tempVehicleBeingTowed);
 
-                                    Screen.ShowNotification("~g~Attachment canceled.");
+                                    Screen.ShowNotification("~g~Abschleppen abgebrochen.");
                                     Tick -= AttachmentTick;
                                     _attachmentStage = AttachmentStage.None;
                                 }
@@ -537,7 +565,7 @@ namespace InfernoCollection.VehicleCollection.Client
                         }
                         else
                         {
-                            Screen.ShowNotification("~g~Attachment canceled.");
+                            Screen.ShowNotification("~g~Abschleppen abgebrochen.");
                             Tick -= AttachmentTick;
                             _attachmentStage = AttachmentStage.None;
                         }
@@ -547,7 +575,7 @@ namespace InfernoCollection.VehicleCollection.Client
 
                 #region Drive On
                 case AttachmentStage.DriveOn:
-                    Screen.DisplayHelpTextThisFrame("~INPUT_FRONTEND_RDOWN~ to confirm position");
+                    Screen.DisplayHelpTextThisFrame("~INPUT_FRONTEND_RDOWN~ um die Position zu bestätigen");
                     break;
                 #endregion
 
@@ -569,7 +597,7 @@ namespace InfernoCollection.VehicleCollection.Client
                     _goFaster = false;
                     _goSlower = false;
                     break;
-                #endregion
+                    #endregion
             }
         }
         #endregion
@@ -656,7 +684,7 @@ namespace InfernoCollection.VehicleCollection.Client
 
                 if (_tempTowVehicle.Position.DistanceToSquared(_tempVehicleBeingTowed.Position) > _config.MaxDistanceFromTowVehicle)
                 {
-                    Screen.ShowNotification("~r~Cannot attach there, too far from tow vehicle!", true);
+                    Screen.ShowNotification("~r~Das Fahrzeug kann dort nicht positioniert werden! Zu weit weg vom Abschlepper.", true);
                     return;
                 }
 
@@ -665,12 +693,30 @@ namespace InfernoCollection.VehicleCollection.Client
                     Game.PlayerPed.Task.LeaveVehicle();
                 }
 
-                Vector3
-                    position = _tempTowVehicle.GetPositionOffset(_tempVehicleBeingTowed.Position),
-                    rotation = _tempVehicleBeingTowed.Rotation - _tempTowVehicle.Rotation;
+                Vector3 position;
+                Vector3 rotation = new Vector3(0.0f, 0.0f, 0.0f); 
+
+                EntityBone bone = _tempTowVehicle.Bones["misc_z"];
+                if (bone != null && bone.Index != -1)
+                {
+                    position = _tempTowVehicle.GetPositionOffset(bone.Position) + new Vector3(0.0f, 4.8f, 0.1f);
+                }
+                else
+                {
+                    position = _tempTowVehicle.GetPositionOffset(_tempVehicleBeingTowed.Position);
+                }
+
 
                 _tempVehicleBeingTowed.LockStatus = VehicleLockStatus.CannotBeTriedToEnter;
-                _tempVehicleBeingTowed.AttachTo(_tempTowVehicle, position, rotation);
+
+                if (bone != null && bone.Index != -1)
+                {
+                    _tempVehicleBeingTowed.AttachTo(bone, position, rotation);
+                }
+                else
+                {
+                    _tempVehicleBeingTowed.AttachTo(_tempTowVehicle, position, rotation);
+                }
 
                 TowedVehicle updatedTowedVehicle = new TowedVehicle()
                 {
@@ -684,7 +730,7 @@ namespace InfernoCollection.VehicleCollection.Client
                 SetVehicleAsBeingUsed(_tempTowVehicle, false);
                 SetVehicleAsBeingUsed(_tempVehicleBeingTowed, false);
 
-                Screen.ShowNotification("~g~Attachment complete! Drive safe.");
+                Screen.ShowNotification("~g~Abschleppen vollendet. Fahr vorsichtig!");
 
                 _tempTowVehicle = null;
                 _tempVehicleBeingTowed = null;
@@ -703,7 +749,7 @@ namespace InfernoCollection.VehicleCollection.Client
             if (!Entity.Exists(_tempTowVehicle) || !Entity.Exists(_tempVehicleBeingTowed))
             {
                 Game.PlaySound("CANCEL", "HUD_FREEMODE_SOUNDSET");
-                Screen.ShowNotification("~g~Attachment canceled.");
+                Screen.ShowNotification("~g~Abschleppen abgebrochen.");
 
                 _attachmentStage = AttachmentStage.Cancel;
             }
@@ -763,14 +809,14 @@ namespace InfernoCollection.VehicleCollection.Client
 
                         if (_attachmentStage == AttachmentStage.Position)
                         {
-                            Screen.ShowNotification("~g~Attachment complete! Drive safe.");
+                            Screen.ShowNotification("~g~Abschleppen vollendet. Fahr vorsichtig!");
 
                             _tempVehicleBeingTowed.ResetOpacity();
                             _tempVehicleBeingTowed.IsCollisionEnabled = true;
                         }
                         else if (_attachmentStage == AttachmentStage.Detach)
                         {
-                            Screen.ShowNotification($"~g~{_tempVehicleBeingTowed.LocalizedName ?? "Vehicle"} detached!");
+                            Screen.ShowNotification($"~g~{_tempVehicleBeingTowed.DisplayName ?? "Fahrzeug"} gelöst!");
 
                             ResetTowedVehicle(_tempVehicleBeingTowed);
                             SetVehicleAsBeingUsed(_tempVehicleBeingTowed, false);
@@ -789,11 +835,12 @@ namespace InfernoCollection.VehicleCollection.Client
 
                 if (_tempTowVehicle.Position.DistanceToSquared(_tempTowVehicle.GetOffsetPosition(position)) > _config.MaxDistanceFromTowVehicle)
                 {
-                    Screen.ShowNotification("~r~Cannot move there, too far from tow vehicle!", true);
+                    Screen.ShowNotification("~r~Das Fahrzeug kann dort nicht positioniert werden! Zu weit weg vom Abschlepper!", true);
                 }
                 else
                 {
                     _tempVehicleBeingTowed.AttachTo(_tempTowVehicle, position, rotation);
+                    
 
                     TowedVehicle updatedTowedVehicle = new TowedVehicle()
                     {
